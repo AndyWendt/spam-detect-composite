@@ -16,7 +16,9 @@ function spam_detect_composite_spam_detect($text, $context) {
 	$spam_score[] = spam_detect_composite_links_in_body_score($links_array[0]);
 	$spam_score[] = spam_detect_composite_body_length_score($text);
 	$spam_score[] = spam_detect_composite_consonants($text);
+	$spam_score[] = spam_detect_composite_first_word($text);
 
+	dd($spam_score);
 	$spam_score = array_sum($spam_score);
 
 	if ($spam_score > 0) {
@@ -77,11 +79,12 @@ function spam_detect_composite_consonants($text) {
 	// 
 	$increase = variable_get('spam_detect_composite_consonants_increase');
 	preg_match_all('/[bcdfghjklmnpqrstvwxz]{6}/i', $text, $matches);  // matches 6 or mor
+	
 	if ($increase < 0) {
 		$spam_score = 0; // Filter set to off: -1
 	}
 	else {
-		$spam_score = count($matches) * $increase;
+		$spam_score = count($matches[0]) * $increase;
 	}
 
 	return $spam_score;
@@ -89,12 +92,15 @@ function spam_detect_composite_consonants($text) {
 
 function spam_detect_composite_first_word($text) {
 	$increase = variable_get('spam_detect_composite_first_word_increase');
-	
+
 	$spammy_words = strtolower(variable_get('spam_detect_composite_first_word_list'));	
 	$spammy_words = array_map('trim', explode("\n", $spammy_words));
 
 	$first_word = strtolower(strtok($text, ' '));
 	$first_word = preg_replace('/[^A-Za-z0-9\-]/', '', $first_word); // remove special chars
+
+
+
 
 
 	if ($increase < 0){
@@ -228,7 +234,7 @@ function spam_detect_composite_settings_form() {
 		$form['spam_detect_composite_first_word_increase'] = array(
 				'#title' 					=> t('First Word is Spammy: Increase Spamminess Score'),
 				'#description' 		=> t('Amount to increase Spam Score if first word matches value in list.  Set to -1 to disable filter.'),
-				'#default_value' 	=> variable_get('spam_detect_composite_first_word_increase', 1),
+				'#default_value' 	=> variable_get('spam_detect_composite_first_word_increase', 10),
 				'#type' 					=> 'textfield',
 				'#max_length' 		=> 2,
 				'#size'						=> 2,
