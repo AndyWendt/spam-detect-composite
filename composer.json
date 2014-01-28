@@ -1,0 +1,5 @@
+{
+    "require": {
+        "jeremykendall/php-domain-parser": "1.1.*"
+    }
+}

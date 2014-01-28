@@ -37,6 +37,7 @@ function spam_detect_composite_spam_detect($text, $context) {
 	$spam_score[] = spam_detect_composite_body_length_score($text, $links_array[0]);
 	$spam_score[] = spam_detect_composite_consonants($text);
 	$spam_score[] = spam_detect_composite_first_word($text);
+	$spam_score[] = spam_detect_composite_url_checks($links_array[0]);
 
 	$spam_score = array_sum($spam_score);
 
@@ -59,6 +60,39 @@ function spam_detect_composite_spam_detect($text, $context) {
 /*==================================
 =            Spam Tests            =
 ==================================*/
+
+function spam_detect_composite_url_checks($links_array) {
+	if (class_exists('Pdp\Parser')) {
+		$pslManager = new Pdp\PublicSuffixListManager();
+		$parser = new Pdp\Parser($pslManager->getList());
+		$i = 0;
+		foreach ($links_array as $link) {
+			$url = '';
+			$url = $parser->parseUrl($link);
+			$words_characters[$i]['path'] = $url->path;
+			$words_characters[$i]['query'] = $url->query;
+			$tlds[$i] = $url->host->publicSuffix;
+			$url_length[$i]['tld'] = $url->host->publicSuffix;
+			$url_length[$i]['domain'] = $url->host->registerableDomain; 
+			$i++;
+		}	
+		$spam_score[] = spam_detect_composite_url_words_characters($words_characters);	
+		$spam_score[] = spam_detect_composite_url_tlds($tlds);
+		$spam_score[] = spam_detect_composite_url_length($url_length);
+
+		return array_sum($spam_score);
+	} 
+	return 0; //can't parse without class
+}
+
+function spam_detect_composite_url_words_characters($words_characters) {
+}
+
+function spam_detect_composite_url_tlds($tlds) {
+}
+
+function spam_detect_composite_url_length($url_length) {
+}
 
 function spam_detect_composite_links_in_body_score($links_array) {
 	$link_count = count($links_array);
@@ -98,7 +132,7 @@ function spam_detect_composite_body_length_score($text, $links_array) {
 	else {
 		$spam_score = 0;
 	}
-	dd($length);
+
 	return $spam_score;
 }
 
