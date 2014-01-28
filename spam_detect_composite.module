@@ -34,15 +34,11 @@ function spam_detect_composite_spam_detect($text, $context) {
 	$spam_score = array();
 
 	$spam_score[] = spam_detect_composite_links_in_body_score($links_array[0]);
-	$spam_score[] = spam_detect_composite_body_length_score($text);
+	$spam_score[] = spam_detect_composite_body_length_score($text, $links_array[0]);
 	$spam_score[] = spam_detect_composite_consonants($text);
 	$spam_score[] = spam_detect_composite_first_word($text);
 
 	$spam_score = array_sum($spam_score);
-
-	global $test;
-
-	dd('test');
 
 	if ($spam_score > 0) {
 		if (($spam_score / $spam_threshold) > 1) {
@@ -65,11 +61,8 @@ function spam_detect_composite_spam_detect($text, $context) {
 ==================================*/
 
 function spam_detect_composite_links_in_body_score($links_array) {
-
 	$link_count = count($links_array);
-
 	$threshold = variable_get('spam_detect_composite_link_body_count');
-
 	$decrease  = variable_get('spam_detect_composite_body_length_decrease_spamminess');
 	$increase = variable_get('spam_detect_composite_link_body_count_increase_spamminess');
 
@@ -82,31 +75,34 @@ function spam_detect_composite_links_in_body_score($links_array) {
 	elseif ($link_count >= $threshold) {
 		$spam_score = $link_count * $increase;
 	} 
+
 	return $spam_score;
 }
 
-function spam_detect_composite_body_length_score($text) {
+function spam_detect_composite_body_length_score($text, $links_array) {
+	$length = strlen(str_replace(' ', '', $text));
+	$link_count = count($links_array);
 	$threshold = variable_get('spam_detect_composite_body_length_threshold');
-	$length = strlen($text);
 	$decrease = variable_get('spam_detect_composite_body_length_decrease_spamminess');
 	$increase = variable_get('spam_detect_composite_body_length_increase_spamminess');
 
 	if ($threshold < 0) {
 		$spam_score = 0; // Filter is set to off: -1
 	}
-	elseif ($length > $threshold) {
+	elseif ($length > $threshold && $link_count == 0) {
 		$spam_score = -$decrease;
 	} 
-	else {
+	elseif ($length < $threshold) {
 		$spam_score = $increase;
+	} 
+	else {
+		$spam_score = 0;
 	}
-
+	dd($length);
 	return $spam_score;
 }
 
 function spam_detect_composite_consonants($text) {
-	// check for more than 5 consonants in a row
-	// 
 	$increase = variable_get('spam_detect_composite_consonants_increase');
 	preg_match_all('/[bcdfghjklmnpqrstvwxz]{6}/i', $text, $matches);  // matches 6 or mor
 
