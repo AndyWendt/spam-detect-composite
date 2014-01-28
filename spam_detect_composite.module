@@ -9,14 +9,16 @@
  * Implements hook_spam_detect().
  */
 function spam_detect_composite_spam_detect($text, $context) {
-	dd(SPAM_DETECT_NO_OPINION);
 	$links_array = spam_detect_composite_find_links($text);
 	$spam_threshold = variable_get('spam_detect_composite_score_threshold');
 	$spam_score = array();
 
 	$spam_score[] = spam_detect_composite_links_in_body_score($links_array[0]);
 	$spam_score[] = spam_detect_composite_body_length_score($text);
+	$spam_score[] = spam_detect_composite_consonants($text);
+
 	$spam_score = array_sum($spam_score);
+
 	if ($spam_score > 0) {
 		if (($spam_score / $spam_threshold) > 1) {
 			return 1;
@@ -40,15 +42,15 @@ function spam_detect_composite_links_in_body_score($links_array) {
 	$increase = variable_get('spam_detect_composite_link_body_count_increase_spamminess');
 
  	if ($threshold < 0) { 
-		$spamminess = 0; // Filter is set to off (i.e. -1).
+		$spam_score = 0; // Filter is set to off: -1
 	} 
 	elseif ($link_count < $threshold) {
-		$spamminess = -$decrease;
+		$spam_score = -$decrease;
 	}
 	elseif ($link_count >= $threshold) {
-		$spamminess = $link_count * $increase;
+		$spam_score = $link_count * $increase;
 	} 
-	return $spamminess;
+	return $spam_score;
 }
 
 function spam_detect_composite_body_length_score($text) {
@@ -56,17 +58,60 @@ function spam_detect_composite_body_length_score($text) {
 	$length = strlen($text);
 	$decrease = variable_get('spam_detect_composite_body_length_decrease_spamminess');
 	$increase = variable_get('spam_detect_composite_body_length_increase_spamminess');
+
 	if ($threshold < 0) {
-		$spamminess = 0; // Filter is set to off (i.e. -1).
+		$spam_score = 0; // Filter is set to off: -1
 	}
 	elseif ($length > $threshold) {
-		$spamminess = -$decrease;
+		$spam_score = -$decrease;
 	} 
 	else {
-		$spamminess = $increase;
+		$spam_score = $increase;
 	}
 
-	return $spamminess;
+	return $spam_score;
+}
+
+function spam_detect_composite_consonants($text) {
+	// check for more than 5 consonants in a row
+	// 
+	$increase = variable_get('spam_detect_composite_consonants_increase');
+	preg_match_all('/[bcdfghjklmnpqrstvwxz]{6}/i', $text, $matches);  // matches 6 or mor
+	if ($increase < 0) {
+		$spam_score = 0; // Filter set to off: -1
+	}
+	else {
+		$spam_score = count($matches) * $increase;
+	}
+
+	return $spam_score;
+}
+
+function spam_detect_composite_first_word($text) {
+	$increase = variable_get('spam_detect_composite_first_word_increase');
+	$spammy_words = variable_get('spam_detect_composite_first_word_list');	
+	$spammy_words = array_map('trim', explode("\n", $spammy_words));
+
+	list($first_word) = explode(' ', trim($comment));
+	$first_word = strtolower(preg_replace('/[^A-Za-z0-9\-]/', '', $first_word)); // remove special chars
+
+
+	if ($increase < 0){
+		return 0; // filter set to off 
+	} 
+	elseif (in_array($first_word, $spammy_words)) {
+		return $increase;
+	}
+	return 0;
+} 
+
+function _spam_detect_composite_first_word_list() {
+	return <<<EOT
+Interesting
+Sorry
+Nice
+Cool
+EOT;
 }
 
 
@@ -80,17 +125,6 @@ function spam_detect_composite_find_links($text) {
 
 	return $links_array;
 } 
-
-// add in a check to see if the third-party module is available.  If it's not, then don't allow the test to be used.  
-// sites/all/libraries should be the location of third party libraries
-// return -1 for errors
-// add custom form api elements (i.e number) so that the data validation kicks in for the js.  http://www.inclind.com/journal/development/adding-custom-form-api-elements-to-drupal/detail.htm
-
-
-//Work in SPAM_DETECT_NO_OPINION maybe.  But if they are stupid enough to turn off all the filters but leave the plugin on, then why are they using it?
-
-
-
 
 /**
  * Implements hook_menu().
@@ -152,7 +186,7 @@ function spam_detect_composite_settings_form() {
 
  	$form['spam_detect_composite_body_length_threshold'] = array(
 			'#title' 					=> t('Body Length: Threshold'),
-			'#description' 		=> t('Minimum character threshold to be consiered a good comment.'),
+			'#description' 		=> t('Minimum character threshold to be consiered a good comment. Set to -1 to disable'),
 			'#default_value' 	=> variable_get('spam_detect_composite_body_length_threshold', 20),
 			'#type' 					=> 'textfield',
 			'#max_length' 		=> 2,
@@ -160,25 +194,52 @@ function spam_detect_composite_settings_form() {
 
 	);
 
-$form['spam_detect_composite_body_length_increase_spamminess'] = array(
-			'#title' 					=> t('Body Length: Increase Spamminess Score'),
-			'#description' 		=> t('Amount to increase Spam Score by if Body Length < Threshold'),
-			'#default_value' 	=> variable_get('spam_detect_composite_body_length_increase_spamminess', 1),
-			'#type' 					=> 'textfield',
-			'#max_length' 		=> 2,
-			'#size'						=> 2,
+	$form['spam_detect_composite_body_length_increase_spamminess'] = array(
+				'#title' 					=> t('Body Length: Increase Spamminess Score'),
+				'#description' 		=> t('Amount to increase Spam Score by if Body Length < Threshold'),
+				'#default_value' 	=> variable_get('spam_detect_composite_body_length_increase_spamminess', 1),
+				'#type' 					=> 'textfield',
+				'#max_length' 		=> 2,
+				'#size'						=> 2,
 
-	);
+		);
 
-$form['spam_detect_composite_body_length_decrease_spamminess'] = array(
-			'#title' 					=> t('Body Length: Decrease Spamminess Score'),
-			'#description' 		=> t('Amount to decrease Spam Score by if Body Length > Threshold'),
-			'#default_value' 	=> variable_get('spam_detect_composite_body_length_decrease_spamminess', 2),
-			'#type' 					=> 'textfield',
-			'#max_length' 		=> 2,
-			'#size'						=> 2,
+	$form['spam_detect_composite_body_length_decrease_spamminess'] = array(
+				'#title' 					=> t('Body Length: Decrease Spamminess Score'),
+				'#description' 		=> t('Amount to decrease Spam Score by if Body Length > Threshold'),
+				'#default_value' 	=> variable_get('spam_detect_composite_body_length_decrease_spamminess', 2),
+				'#type' 					=> 'textfield',
+				'#max_length' 		=> 2,
+				'#size'						=> 2,
 
-	);
+		);
+
+	$form['spam_detect_composite_consonants_increase'] = array(
+				'#title' 					=> t('Consonants: Increase Spamminess Score'),
+				'#description' 		=> t('Amount to increase Spam Score for each occurence of 6 consonants or more in a row.  Set to -1 to disable filter.'),
+				'#default_value' 	=> variable_get('spam_detect_composite_consonants_increase', 1),
+				'#type' 					=> 'textfield',
+				'#max_length' 		=> 2,
+				'#size'						=> 2,
+
+		);
+
+		$form['spam_detect_composite_first_word_increase'] = array(
+				'#title' 					=> t('First Word is Spammy: Increase Spamminess Score'),
+				'#description' 		=> t('Amount to increase Spam Score if first word matches value in list.  Set to -1 to disable filter.'),
+				'#default_value' 	=> variable_get('spam_detect_composite_first_word_increase', 1),
+				'#type' 					=> 'textfield',
+				'#max_length' 		=> 2,
+				'#size'						=> 2,
+
+		);
+	$form['spam_detect_composite_first_word_list'] = array(
+      '#type' => 'textarea',
+      '#title' => t('First Word is Spammy List'),
+      '#description' => t('Enter each test word on a new line'),
+      '#default_value' => variable_get('spam_detect_composite_first_word_list', _spam_detect_composite_first_word_list()),
+    );
+
 	return system_settings_form($form);
 
 }
