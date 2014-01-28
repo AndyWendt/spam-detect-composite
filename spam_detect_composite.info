@@ -4,3 +4,4 @@ dependencies[] = spam_detect
 package = Spam
 configure = admin/config/system/spam_detect/composite
 core = 7.x
+files[] = spam_detect_composite.admin.inc
