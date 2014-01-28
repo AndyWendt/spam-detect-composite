@@ -89,11 +89,12 @@ function spam_detect_composite_consonants($text) {
 
 function spam_detect_composite_first_word($text) {
 	$increase = variable_get('spam_detect_composite_first_word_increase');
-	$spammy_words = variable_get('spam_detect_composite_first_word_list');	
+	
+	$spammy_words = strtolower(variable_get('spam_detect_composite_first_word_list'));	
 	$spammy_words = array_map('trim', explode("\n", $spammy_words));
 
-	list($first_word) = explode(' ', trim($comment));
-	$first_word = strtolower(preg_replace('/[^A-Za-z0-9\-]/', '', $first_word)); // remove special chars
+	$first_word = strtolower(strtok($text, ' '));
+	$first_word = preg_replace('/[^A-Za-z0-9\-]/', '', $first_word); // remove special chars
 
 
 	if ($increase < 0){
