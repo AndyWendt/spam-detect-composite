@@ -1,0 +1,188 @@
+<?php
+
+/**
+ * @file
+ * Checks text against multiple filters to ascertain spamminess
+ */
+
+/**
+ * Implements hook_spam_detect().
+ */
+function spam_detect_composite_spam_detect($text, $context) {
+	dd(SPAM_DETECT_NO_OPINION);
+	$links_array = spam_detect_composite_find_links($text);
+	$spam_threshold = variable_get('spam_detect_composite_score_threshold');
+	$spam_score = array();
+
+	$spam_score[] = spam_detect_composite_links_in_body_score($links_array[0]);
+	$spam_score[] = spam_detect_composite_body_length_score($text);
+	$spam_score = array_sum($spam_score);
+	if ($spam_score > 0) {
+		if (($spam_score / $spam_threshold) > 1) {
+			return 1;
+		} 
+		else {
+			return $spam_score / $spam_threshold;
+		}
+	}
+	
+	return 0;
+}
+
+
+function spam_detect_composite_links_in_body_score($links_array) {
+
+	$link_count = count($links_array);
+
+	$threshold = variable_get('spam_detect_composite_link_body_count');
+
+	$decrease  = variable_get('spam_detect_composite_body_length_decrease_spamminess');
+	$increase = variable_get('spam_detect_composite_link_body_count_increase_spamminess');
+
+ 	if ($threshold < 0) { 
+		$spamminess = 0; // Filter is set to off (i.e. -1).
+	} 
+	elseif ($link_count < $threshold) {
+		$spamminess = -$decrease;
+	}
+	elseif ($link_count >= $threshold) {
+		$spamminess = $link_count * $increase;
+	} 
+	return $spamminess;
+}
+
+function spam_detect_composite_body_length_score($text) {
+	$threshold = variable_get('spam_detect_composite_body_length_threshold');
+	$length = strlen($text);
+	$decrease = variable_get('spam_detect_composite_body_length_decrease_spamminess');
+	$increase = variable_get('spam_detect_composite_body_length_increase_spamminess');
+	if ($threshold < 0) {
+		$spamminess = 0; // Filter is set to off (i.e. -1).
+	}
+	elseif ($length > $threshold) {
+		$spamminess = -$decrease;
+	} 
+	else {
+		$spamminess = $increase;
+	}
+
+	return $spamminess;
+}
+
+
+function spam_detect_composite_find_links($text) {
+
+	// Regex by John Gruber: http://daringfireball.net/2010/07/improved_regex_for_matching_urls
+	// License: Public Domain
+	$regex = '~(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))~';
+
+	preg_match_all($regex, $text, $links_array);
+
+	return $links_array;
+} 
+
+// add in a check to see if the third-party module is available.  If it's not, then don't allow the test to be used.  
+// sites/all/libraries should be the location of third party libraries
+// return -1 for errors
+// add custom form api elements (i.e number) so that the data validation kicks in for the js.  http://www.inclind.com/journal/development/adding-custom-form-api-elements-to-drupal/detail.htm
+
+
+//Work in SPAM_DETECT_NO_OPINION maybe.  But if they are stupid enough to turn off all the filters but leave the plugin on, then why are they using it?
+
+
+
+
+/**
+ * Implements hook_menu().
+ */
+function spam_detect_composite_menu() {
+  return array('admin/config/system/spam_detect/composite' => array(
+    'title' => 'Composite',
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('spam_detect_composite_settings_form'),
+    'access arguments' => array('administer spam filter'),
+  ));
+}
+
+/**
+ * Settings form callback.
+ * @todo Need to group the items together or put them on seperate tabs.
+ */
+function spam_detect_composite_settings_form() {
+	$form = array();
+
+	$form['spam_detect_composite_score_threshold'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Composite Score Threshold'),
+    '#description' => t('Sum of all active filters is divided by this threshold'),
+    '#default_value' => variable_get('spam_detect_composite_score_threshold', 15),
+    '#max_length' => 2,
+    '#size'				=> 2,
+  );
+
+	$form['spam_detect_composite_link_body_count'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Link Count in Body: Threshold'),
+    '#description' => t('If link count in text is greater than this number then increase spamminess score.  If lower, decrease spamminess score. Set this to -1 to disable this filter.'),
+    '#default_value' => variable_get('spam_detect_composite_link_body_count', 2),
+    '#max_length' => 2,
+    '#size'				=> 2,
+  );
+
+  	$form['spam_detect_composite_link_body_count_decrease_spamminess'] = array(
+			'#title' 					=> t('Link Count in Body: Decrease Spamminess Score'),
+			'#description' 		=> t('Amount to decrease spamminess if link count < threshold.'),
+			'#default_value' 	=> variable_get('spam_detect_composite_link_body_count_decrease_spamminess', 2),
+			'#type' 					=> 'textfield',
+			'#max_length' 		=> 2,
+			'#size'						=> 2,
+
+	);
+
+ 	$form['spam_detect_composite_link_body_count_increase_spamminess'] = array(
+			'#title' 					=> t('Link Count in Body: Increase Spamminess Score'),
+			'#description' 		=> t('Amount to increase spamminess per link if link count > threshold.'),
+			'#default_value' 	=> variable_get('spam_detect_composite_link_body_count_increase_spamminess', 1),
+			'#type' 					=> 'textfield',
+			'#max_length' 		=> 2,
+			'#size'						=> 2,
+
+	);
+
+ 	$form['spam_detect_composite_body_length_threshold'] = array(
+			'#title' 					=> t('Body Length: Threshold'),
+			'#description' 		=> t('Minimum character threshold to be consiered a good comment.'),
+			'#default_value' 	=> variable_get('spam_detect_composite_body_length_threshold', 20),
+			'#type' 					=> 'textfield',
+			'#max_length' 		=> 2,
+			'#size'						=> 2,
+
+	);
+
+$form['spam_detect_composite_body_length_increase_spamminess'] = array(
+			'#title' 					=> t('Body Length: Increase Spamminess Score'),
+			'#description' 		=> t('Amount to increase Spam Score by if Body Length < Threshold'),
+			'#default_value' 	=> variable_get('spam_detect_composite_body_length_increase_spamminess', 1),
+			'#type' 					=> 'textfield',
+			'#max_length' 		=> 2,
+			'#size'						=> 2,
+
+	);
+
+$form['spam_detect_composite_body_length_decrease_spamminess'] = array(
+			'#title' 					=> t('Body Length: Decrease Spamminess Score'),
+			'#description' 		=> t('Amount to decrease Spam Score by if Body Length > Threshold'),
+			'#default_value' 	=> variable_get('spam_detect_composite_body_length_decrease_spamminess', 2),
+			'#type' 					=> 'textfield',
+			'#max_length' 		=> 2,
+			'#size'						=> 2,
+
+	);
+	return system_settings_form($form);
+
+}
+
+
+
+

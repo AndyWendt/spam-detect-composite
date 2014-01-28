@@ -1,0 +1,6 @@
+name = Spam Detect: Composite filter
+description = Multiple filters
+dependencies[] = spam_detect
+package = Spam
+configure = admin/config/system/spam_detect/composite
+core = 7.x
