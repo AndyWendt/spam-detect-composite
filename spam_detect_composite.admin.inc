@@ -1,5 +1,35 @@
 <?php
 
+function _spam_detect_composite_first_word_list() {
+	return <<<EOT
+Interesting
+Sorry
+Nice
+Cool
+EOT;
+}
+
+function _spam_detect_composite_tld_list() {
+	return <<<EOT
+de
+pl
+cn
+EOT;
+}
+
+function _spam_detect_composite_word_characters_list() {
+	return <<<EOT
+.html
+.info
+?
+&
+free
+EOT;
+}
+
+
+
+
 /**
  * Settings form callback.
  * @todo Need to group the items together or put them on seperate tabs.
@@ -100,8 +130,55 @@ function spam_detect_composite_settings_form() {
       '#description' => t('Enter each test word on a new line. List is case insensitive and strips out special chars.'),
       '#default_value' => variable_get('spam_detect_composite_first_word_list', _spam_detect_composite_first_word_list()),
     );
+	$form['spam_detect_composite_tld_increase'] = array(
+      '#type' => 'textfield',
+      '#title' => t('TLD: Increase Spamminess Score'),
+      '#description' => t('Amount to increase Spam Score if tld matches value in list.  Set to -1 to disable filter.'),
+      '#default_value' => variable_get('spam_detect_composite_tld_increase', 1),
+      	'#max_length' 		=> 2,
+				'#size'						=> 2,
+    );
+	$form['spam_detect_composite_tld_list'] = array(
+      '#type' => 'textarea',
+      '#title' => t('TLD List'),
+      '#description' => t('Enter each tld on a new line. Supports second level domains such as "co.uk"'),
+      '#default_value' => variable_get('spam_detect_composite_tld_list', _spam_detect_composite_tld_list()),
+    );
+
+	$form['spam_detect_composite_url_length_threshold'] = array(
+			'#title' 					=> t('URL Length: Threshold'),
+			'#description' 		=> t('Threshold for url to be considered spam. Set to -1 to disable'),
+			'#default_value' 	=> variable_get('spam_detect_composite_url_length_threshold', 30),
+			'#type' 					=> 'textfield',
+			'#max_length' 		=> 2,
+			'#size'						=> 2,
+
+	);
+
+	$form['spam_detect_composite_url_length_increase'] = array(
+      '#type' => 'textfield',
+      '#title' => t('URL Length: Increase Spamminess Score'),
+      '#description' => t('Amount to increase Spam Score if url length > threshold.'),
+      '#default_value' => variable_get('spam_detect_composite_url_length_increase', 1),
+      	'#max_length' 		=> 2,
+				'#size'						=> 2,
+   );
+
+	$form['spam_detect_composite_words_characters_increase'] = array(
+      '#type' => 'textfield',
+      '#title' => t('URL Words or Characters: Increase Spamminess Score'),
+      '#description' => t('Amount to increase Spam Score per word or character from list if it is in the URL.  Set to -1 to disable filter.'),
+      '#default_value' => variable_get('spam_detect_composite_words_characters_increase', 1),
+      	'#max_length' 		=> 2,
+				'#size'						=> 2,
+    );
+	$form['spam_detect_composite_words_characters_list'] = array(
+      '#type' => 'textarea',
+      '#title' => t('URL Words Characters List'),
+      '#description' => t('Enter each value on a new line."'),
+      '#default_value' => variable_get('spam_detect_composite_words_characters_list', _spam_detect_composite_word_characters_list()),
+    );
 
 	return system_settings_form($form);
 
 }
-
