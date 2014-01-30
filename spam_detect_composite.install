@@ -8,7 +8,7 @@
 /**
  * Implements hook_uninstall().
  */
-function spam_detect_blacklist_uninstall() {
+function spam_detect_composite_uninstall() {
   variable_del('spam_detect_composite_score_threshold');
   variable_del('spam_detect_composite_link_body_count');
   variable_del('spam_detect_composite_link_body_count_decrease_spamminess');
