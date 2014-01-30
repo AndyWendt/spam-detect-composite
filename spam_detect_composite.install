@@ -1,0 +1,29 @@
+<?php
+
+/**
+ * @file
+ * Install file for Spam Detect Blacklist.
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function spam_detect_blacklist_uninstall() {
+  variable_del('spam_detect_composite_score_threshold');
+  variable_del('spam_detect_composite_link_body_count');
+  variable_del('spam_detect_composite_link_body_count_decrease_spamminess');
+  variable_del('spam_detect_composite_link_body_count_increase_spamminess');
+  variable_del('spam_detect_composite_body_length_threshold');
+  variable_del('spam_detect_composite_body_length_increase_spamminess');
+  variable_del('spam_detect_composite_body_length_decrease_spamminess');
+  variable_del('spam_detect_composite_consonants_increase');
+  variable_del('spam_detect_composite_first_word_increase');
+  variable_del('spam_detect_composite_first_word_list');
+  variable_del('spam_detect_composite_tld_increase');
+  variable_del('spam_detect_composite_tld_list');
+  variable_del('spam_detect_composite_url_length_threshold');
+  variable_del('spam_detect_composite_url_length_increase');
+  variable_del('spam_detect_composite_words_characters_increase');
+  variable_del('spam_detect_composite_words_characters_list');
+
+}
