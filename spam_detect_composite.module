@@ -34,17 +34,17 @@ function spam_detect_composite_spam_detect($text, $context) {
 
 	if (!empty(array_filter($links_array))) {
 		$spam_score['links_in_body'] = spam_detect_composite_links_in_body_score($links_array);
-		$spam_score['body_length'] = spam_detect_composite_body_length_score($text, $links_array);
 		$spam_score['url_length'] = spam_detect_composite_url_length($links_array);
 		$spam_score['words_chars'] = spam_detect_composite_url_words_characters($links_array);
 		$spam_score['tlds'] = spam_detect_composite_tlds($links_array);
 	}
-
+	$spam_score['body_length'] = spam_detect_composite_body_length_score($text, $links_array);
 	$spam_score['consonants'] = spam_detect_composite_consonants($text);
 	$spam_score['first_word'] = spam_detect_composite_first_word($text);
 
 	//dpm($spam_score, 'composite');
-
+	//dd($spam_score);
+	
 	$spam_score = array_sum($spam_score);
 
 	if ($spam_score > 0) {
