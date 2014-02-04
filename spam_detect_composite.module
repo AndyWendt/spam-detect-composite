@@ -21,7 +21,7 @@ function spam_detect_composite_menu() {
     'type' => MENU_LOCAL_TASK,
     'page callback' => 'drupal_get_form',
     'page arguments' => array('spam_detect_composite_settings_form'),
-    'access arguments' => array('administer spam filter'),
+    'access arguments' => array('administer spam detect'),
   ));
 }
 
@@ -29,10 +29,10 @@ function spam_detect_composite_menu() {
  * Implements hook_spam_detect().
  */
 function spam_detect_composite_spam_detect($text, $context) {
-	$links_array = spam_detect_composite_find_links($text)[0];
+	$links_array = spam_detect_composite_find_links($text);
 	$spam_threshold = variable_get('spam_detect_composite_score_threshold');
 
-	if (!empty(array_filter($links_array))) {
+	if (isset($links_array) && !empty(array_filter($links_array))) {
 		$spam_score['links_in_body'] = spam_detect_composite_links_in_body_score($links_array);
 		$spam_score['url_length'] = spam_detect_composite_url_length($links_array);
 		$spam_score['words_chars'] = spam_detect_composite_url_words_characters($links_array);
@@ -42,8 +42,9 @@ function spam_detect_composite_spam_detect($text, $context) {
 	$spam_score['consonants'] = spam_detect_composite_consonants($text);
 	$spam_score['first_word'] = spam_detect_composite_first_word($text);
 
-	//dpm($spam_score, 'composite');
-	//dd($spam_score);
+	if (SIMPLE_TESTING){
+		debug($spam_score);
+	}
 	
 	$spam_score = array_sum($spam_score);
 
@@ -148,7 +149,7 @@ function spam_detect_composite_links_in_body_score($links_array) {
 	} 
 
 	$link_count = count($links_array);
-	$decrease  = variable_get('spam_detect_composite_body_length_decrease_spamminess');
+	$decrease  = variable_get('spam_detect_composite_link_body_count_decrease_spamminess');
 	$increase = variable_get('spam_detect_composite_link_body_count_increase_spamminess');
 
 	if ($link_count < $threshold) {
@@ -166,9 +167,9 @@ function spam_detect_composite_body_length_score($text, $links_array) {
 	if ($threshold < 0) {
 		return 0; // Filter is set to off: -1
 	}
-
 	$length = strlen(str_replace(' ', '', $text));
 	$link_count = count($links_array);
+	
 	$decrease = variable_get('spam_detect_composite_body_length_decrease_spamminess');
 	$increase = variable_get('spam_detect_composite_body_length_increase_spamminess');
 
@@ -231,9 +232,11 @@ function spam_detect_composite_find_links($text) {
 
 	preg_match_all($regex, $text, $links_array);
 
-	return $links_array;
+	return $links_array[0];
 } 
 
 
 
 /*-----  End of Utils  ------*/
+
+

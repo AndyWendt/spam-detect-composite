@@ -1,0 +1,114 @@
+<?php
+
+class SpamDetectCompositeTestCase extends DrupalWebTestCase {
+	// protected $test1 = 'Interesting cool';
+	// protected $test2 = 'www.apple.com';
+ //  protected $test3 = ''; 
+ //  
+  public static function getInfo() {
+    return array(
+      'name' => 'Spam Detect Composite Spam Detection',
+      'description' => 'Test spam detection with Spam Detect Composite.',
+      'group' => 'Spam Detect',
+    );
+  }
+
+  function setUp() {
+    parent::setUp('composer_manager', 'spam_detect', 'spam_detect_composite');
+    $user = $this->drupalCreateUser(array('administer spam detect'));
+    $this->drupalLogin($user);
+  }
+
+  function testSpamDetectComposite() {
+
+  	define('SIMPLE_TESTING', 1);
+  	define('COMPOSITE_THRESHOLD', 15);
+
+    //tlds
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_tld_increase' => 1,
+    ), t('Save configuration'));
+
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_tld_list' => _spam_detect_composite_tld_list(),
+    ), t('Save configuration'));
+
+    // words characters in url
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_words_characters_increase' => 1,
+    ), t('Save configuration'));
+
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_words_characters_list' => _spam_detect_composite_word_characters_list(),
+    ), t('Save configuration'));
+
+    //url length 
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_url_length_threshold' => 30,
+    ), t('Save configuration'));
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_url_length_increase' => 1,
+    ), t('Save configuration'));
+
+    //Body Link Count
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_link_body_count' => 2,
+    ), t('Save configuration'));
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_link_body_count_decrease_spamminess' => 2,
+    ), t('Save configuration'));
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_link_body_count_increase_spamminess' => 1,
+    ), t('Save configuration'));
+
+    //body length
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_body_length_threshold' => 20,
+    ), t('Save configuration'));
+
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_body_length_decrease_spamminess' => 2,
+    ), t('Save configuration'));
+
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_body_length_increase_spamminess' => 1,
+    ), t('Save configuration'));
+
+    //Consonants
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_consonants_increase' => 1,
+    ), t('Save configuration'));
+
+    //First Word
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_first_word_increase' => 10,
+    ), t('Save configuration'));
+
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_first_word_list' => _spam_detect_composite_first_word_list(),
+    ), t('Save configuration'));
+
+    //
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+      'spam_detect_composite_score_threshold' => COMPOSITE_THRESHOLD,
+    ), t('Save configuration'));
+
+    //Tests
+    $test1 = 'Interesting cool';
+    //$score = [body_length => 1, first_word => 10]
+    $score1 = 11/COMPOSITE_THRESHOLD;
+    $this->assertEqual(spam_detect_composite_spam_detect($test1,''), $score1);
+    
+    $test2 = 'www.apple.com www.spammy.cn/qrstvwxaqrstvwxaqrstvwx http://spammytuna.pl/freespam.html';
+    // $score = [consonants => 3 , links => 3 , 
+    // word/chars => 2 , tlds => 2 , url_length => 1]
+    $score2 = 11/COMPOSITE_THRESHOLD;
+    $this->assertEqual(spam_detect_composite_spam_detect($test2,''), $score2);
+
+    // $test3 = '';
+
+    // $score3 = 0/COMPOSITE_THRESHOLD;
+    // $this->assertEqual(spam_detect_composite_spam_detect($test3,''), $score3);
+  }
+
+}
