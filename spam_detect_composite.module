@@ -45,12 +45,10 @@ function spam_detect_composite_spam_detect($text, $context) {
 
   if (SIMPLE_TESTING) debug($spam_score);
 
-  return spam_detect_composite_calculate_score($spam_score);
+  return spam_detect_composite_calculate_combined_score($spam_score);
 }
 
-
 /*-----  End of Hook Implementations  ------*/
-
 
 
 /*==================================
@@ -185,14 +183,15 @@ function spam_detect_composite_find_links($text) {
 
   // Regex by John Gruber: http://daringfireball.net/2010/07/improved_regex_for_matching_urls
   // License: Public Domain
-  $regex = '~(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))~';
+  $regex = '~(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))
+  *\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))~';
 
   preg_match_all($regex, $text, $links_array);
 
   return $links_array[0];
 }
 
-function spam_detect_composite_calculate_score(array $spam_score_array) {
+function spam_detect_composite_calculate_combined_score(array $spam_score_array) {
   $spam_score = array_sum($spam_score_array);
   $spam_threshold = variable_get('spam_detect_composite_score_threshold');
 
@@ -201,7 +200,4 @@ function spam_detect_composite_calculate_score(array $spam_score_array) {
   return $spam_score / $spam_threshold;
 }
 
-
 /*-----  End of Utils  ------*/
-
-
