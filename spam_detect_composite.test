@@ -1,10 +1,9 @@
 <?php
 
 class SpamDetectCompositeTestCase extends DrupalWebTestCase {
-	// protected $test1 = 'Interesting cool';
-	// protected $test2 = 'www.apple.com';
- //  protected $test3 = ''; 
- //  
+
+  protected $composite_threshold = 15;
+
   public static function getInfo() {
     return array(
       'name' => 'Spam Detect Composite Spam Detection',
@@ -13,102 +12,153 @@ class SpamDetectCompositeTestCase extends DrupalWebTestCase {
     );
   }
 
-  function setUp() {
+  public function setUp() {
     parent::setUp('composer_manager', 'spam_detect', 'spam_detect_composite');
     $user = $this->drupalCreateUser(array('administer spam detect'));
     $this->drupalLogin($user);
   }
 
-  function testSpamDetectComposite() {
+  public function testSpamDetectComposite() {
 
-  	define('SIMPLE_TESTING', 1);
-  	define('COMPOSITE_THRESHOLD', 15);
-
-    //tlds
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_tld_increase' => 1,
-    ), t('Save configuration'));
-
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_tld_list' => _spam_detect_composite_tld_list(),
-    ), t('Save configuration'));
-
-    // words characters in url
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_words_characters_increase' => 1,
-    ), t('Save configuration'));
-
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_words_characters_list' => _spam_detect_composite_word_characters_list(),
-    ), t('Save configuration'));
-
-    //url length 
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_url_length_threshold' => 30,
-    ), t('Save configuration'));
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_url_length_increase' => 1,
-    ), t('Save configuration'));
-
-    //Body Link Count
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_link_body_count' => 2,
-    ), t('Save configuration'));
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_link_body_count_decrease_spamminess' => 2,
-    ), t('Save configuration'));
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_link_body_count_increase_spamminess' => 1,
-    ), t('Save configuration'));
-
-    //body length
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_body_length_threshold' => 20,
-    ), t('Save configuration'));
-
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_body_length_decrease_spamminess' => 2,
-    ), t('Save configuration'));
-
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_body_length_increase_spamminess' => 1,
-    ), t('Save configuration'));
-
-    //Consonants
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_consonants_increase' => 1,
-    ), t('Save configuration'));
-
-    //First Word
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_first_word_increase' => 10,
-    ), t('Save configuration'));
-
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_first_word_list' => _spam_detect_composite_first_word_list(),
-    ), t('Save configuration'));
-
-    //
-    $this->drupalPost('admin/config/system/spam_detect/composite', array(
-      'spam_detect_composite_score_threshold' => COMPOSITE_THRESHOLD,
-    ), t('Save configuration'));
+     $this->set_module_defaults();
 
     //Tests
-    $test1 = 'Interesting cool';
+    $test1 = $this->test1_get_array();
+
     //$score = [body_length => 1, first_word => 10]
-    $score1 = 11/COMPOSITE_THRESHOLD;
-    $this->assertEqual(spam_detect_composite_spam_detect($test1,''), $score1);
+    $score1 = 11/$this->composite_threshold;
+    $this->assertEqual(spam_detect_composite_spam_detect($test1['text']), $score1);
     
     $test2 = 'www.apple.com www.spammy.cn/qrstvwxaqrstvwxaqrstvwx http://spammytuna.pl/freespam.html';
-    // $score = [consonants => 3 , links => 3 , 
-    // word/chars => 2 , tlds => 2 , url_length => 1]
-    $score2 = 11/COMPOSITE_THRESHOLD;
-    $this->assertEqual(spam_detect_composite_spam_detect($test2,''), $score2);
+    // $score = [consonants => 3 , links => 3 ]
+    $score2 = 6/$this->composite_threshold;
+    $this->assertEqual(spam_detect_composite_spam_detect($test2), $score2);
 
-    // $test3 = '';
+  }
 
-    // $score3 = 0/COMPOSITE_THRESHOLD;
-    // $this->assertEqual(spam_detect_composite_spam_detect($test3,''), $score3);
+  protected function test1_get_array() {
+    return array(
+      'text' => 'Interesting cool',
+      'context' => (object) array('nid' => 1),
+      'comments' => array(
+        74 => (object) array(
+          'cid' => '74',
+          'nid' => '3',
+          'subject' => 'test',
+          'name' => 'http://www.fuddy.com',
+          'email' => 'spam@spam.org',
+          'author_url' => 'http://www.asdf.de/free?asdf=asdf&asdflj=34',
+          'body' => 'test',
+          'flag_name' => 'spam',
+          'flag_id' => NULL,
+          'flag_count' => NULL,
+        ),
+        75 => (object) array(
+          'cid' => '75',
+          'nid' => '3',
+          'subject' => 'test',
+          'name' => 'http://www.fuddy.com',
+          'email' => 'spam@spam.org',
+          'author_url' => 'http://www.asdf.de/free?asdf=asdf&asdflj=34',
+          'body' => 'test',
+          'flag_name' => NULL,
+          'flag_id' => NULL,
+          'flag_count' => NULL,
+        )
+      ),
+    );
+  }
+
+  protected function test2_get_array() {
+
+  }
+
+  protected function set_module_defaults() {
+    /////// Composite Score Threshold /////
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_score_threshold' => $this->composite_threshold,
+      ), t('Save configuration'));
+
+    /////  Links in Body /////
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_link_body_count' => 2,
+      ), t('Save configuration'));
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_link_body_count_decrease_spamminess' => 2,
+      ), t('Save configuration'));
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_link_body_count_increase_spamminess' => 1,
+      ), t('Save configuration'));
+
+    ///// Body Length /////
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_body_length_threshold' => 20,
+      ), t('Save configuration'));
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_body_length_decrease_spamminess' => 2,
+      ), t('Save configuration'));
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_body_length_increase_spamminess' => 1,
+      ), t('Save configuration'));
+
+    ///// Previous Comments Status ////
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_spam_flag_name' => 'spam',
+      ), t('Save configuration'));
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_status_of_previous_comments_increase' => 1,
+      ), t('Save configuration'));
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_status_of_previous_comments_decrease' => 1,
+      ), t('Save configuration'));
+
+    ////// Certain Words or Characters //////
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_words_characters_increase' => 1,
+      ), t('Save configuration'));
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_words_characters_list' => _spam_detect_composite_word_characters_list(),
+      ), t('Save configuration'));
+
+    ///// TLDs /////
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_tld_increase' => 1,
+      ), t('Save configuration'));
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_tld_list' => _spam_detect_composite_tld_list(),
+      ), t('Save configuration'));
+
+    ///// URL Length //////
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_url_length_threshold' => 30,
+      ), t('Save configuration'));
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_url_length_increase' => 1,
+      ), t('Save configuration'));
+
+    ///// Body Starts With /////
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_first_word_increase' => 10,
+      ), t('Save configuration'));
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_first_word_list' => _spam_detect_composite_first_word_list(),
+      ), t('Save configuration'));
+
+    ///// Author Name /////
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_author_name_check' => 2,
+      ), t('Save configuration'));
+
+    ///// Body Used in Previous Comment /////
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_body_in_previous_comment' => 1,
+      ), t('Save configuration'));
+
+    ///// Random Character Match or Consonants //////
+    $this->drupalPost('admin/config/system/spam_detect/composite', array(
+        'spam_detect_composite_consonants_increase' => 1,
+      ), t('Save configuration'));
+
   }
 
 }
