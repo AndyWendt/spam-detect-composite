@@ -30,17 +30,38 @@ function spam_detect_composite_menu() {
 /**
  * Implements hook_spam_detect().
  */
-function spam_detect_composite_spam_detect($text, stdClass $context = null) {
-  $links_array    = array_filter(spam_detect_composite_find_links($text));
-  $nid = $context->nid;
+function spam_detect_composite_spam_detect($text, stdClass $context = NULL) {
+  $links_array = array_filter(spam_detect_composite_find_links($text));
+
   if (is_object($context)) {
-    $comments = spam_detect_get_node_comments_with_flags($nid);
-    $spam_score['body_in_previous_comment'] = spam_detect_composite_body_in_previous_comments($comments);
-    $spam_score['status_of_previous_comments'] = spam_detect_composite_status_of_previous_comments($comments);
-    $spam_score['author_name'] = spam_detect_composite_author_name_check($comments);
+    $nid           = $context->nid;
+    $site_comments = spam_detect_get_all_comments_with_flags($nid);
+    $node_comments = spam_detect_composite_get_node_comments_from_all_comments($site_comments, $nid);
+    array_pop($site_comments);
+    $last_comment = array_pop($node_comments);
+
+    $spam_score['author_name'] = spam_detect_composite_author_name_check($last_comment);
+
+    $spam_score['body_in_previous_comment'] = 0;
+    foreach ($node_comments as $node_single_comment) {
+      $spam_score['body_in_previous_comment'] += spam_detect_composite_body_in_previous_comment(
+        $node_single_comment,
+        $last_comment
+      );
+    }
+
+    $spam_score['status_of_previous_comments'] = 0;
+    foreach ($site_comments as $site_single_comment) {
+      $spam_score['status_of_previous_comments'] += spam_detect_composite_status_of_previous_comment(
+        $site_single_comment,
+        $last_comment
+      );
+    }
+
   }
 
   if (isset($links_array) && !empty($links_array)) {
+    //todo need to change some of these to pull from the author url and not the body.
     $spam_score['links_in_body'] = spam_detect_composite_links_in_body_score($links_array);
     $spam_score['url_length']    = spam_detect_composite_url_length($links_array);
     $spam_score['words_chars']   = spam_detect_composite_url_words_characters($links_array);
@@ -58,47 +79,32 @@ function spam_detect_composite_spam_detect($text, stdClass $context = null) {
 
 /*-----  End of Hook Implementations  ------*/
 
-function spam_detect_composite_body_in_previous_comments(array $comments) {
+function spam_detect_composite_body_in_previous_comment($comment, $last_comment) {
   $increase = variable_get('spam_detect_composite_body_in_previous_comment');
   if ($increase <= 0) return 0;
-
-  $last_comment = array_pop($comments);
-  $spam_count = 0;
-
-  foreach ($comments as $comment) {
-    if (trim($last_comment->body) == trim($comment->body)) $spam_count += $increase;
-  }
-  return $spam_count;
+  if (trim($last_comment->body) == trim($comment->body)) return $increase;
+  return 0;
 }
 
-function spam_detect_composite_status_of_previous_comments(array $comments) {
+function spam_detect_composite_status_of_previous_comment($comment, $last_comment) {
   $increase = variable_get('spam_detect_composite_status_of_previous_comments_increase');
   if ($increase <= 0) return 0;
 
-  $last_comment = array_pop($comments);
-  $flag = variable_get('spam_detect_composite_spam_flag_name');
+  $flag     = variable_get('spam_detect_composite_spam_flag_name');
   $decrease = variable_get('spam_detect_composite_status_of_previous_comments_decrease');
-  $spam_count = 0;
 
-  foreach ($comments as $comment) {
-    if ($last_comment->email == $comment->email) {
-      $spam_count += ($comment->flag_name == trim($flag)) ?  $increase : -$decrease;
-    }
+  if ($last_comment->email == $comment->email) {
+    return ($comment->flag_name == trim($flag)) ? $increase : -$decrease;
   }
 
-  return $spam_count;
+  return 0;
 }
 
-function spam_detect_composite_author_name_check(array $comments) {
+function spam_detect_composite_author_name_check($last_comment) {
   $increase = variable_get('spam_detect_composite_author_name_check');
   if ($increase <= 0) return 0;
-
-  $last_comment = array_pop($comments);
   $search = 'http://';
-
-  debug($last_comment->name);
-  if (strpos($last_comment->name, $search) !== false) return $increase;
-
+  if (strpos($last_comment->name, $search) !== FALSE) return $increase;
   return 0;
 }
 
@@ -108,7 +114,7 @@ function spam_detect_composite_author_name_check(array $comments) {
 
 function spam_detect_composite_tlds($links_array) {
 
-  if ( ! class_exists('Pdp\Parser')) return 0;
+  if (!class_exists('Pdp\Parser')) return 0;
 
   $increase = variable_get('spam_detect_composite_tld_increase');
   if ($increase <= 0) return 0;
@@ -125,7 +131,7 @@ function spam_detect_composite_tlds($links_array) {
   $spammy_tld_list = explode("\n", strtolower(variable_get('spam_detect_composite_tld_list')));
 
   // the array walk is to make sure that the tlds in the list
-  // does not have a '.' or ' ' before or after it
+  // do not have a '.' or ' ' before or after it
   array_walk(
     $spammy_tld_list,
     function (&$tld) {
@@ -243,7 +249,7 @@ function spam_detect_composite_find_links($text) {
 }
 
 function spam_detect_composite_calculate_combined_score(array $spam_score_array) {
-  $spam_score = array_sum($spam_score_array);
+  $spam_score     = array_sum($spam_score_array);
   $spam_threshold = variable_get('spam_detect_composite_score_threshold');
 
   if ($spam_score < 0) return 0;
@@ -251,18 +257,28 @@ function spam_detect_composite_calculate_combined_score(array $spam_score_array)
   return $spam_score / $spam_threshold;
 }
 
-function spam_detect_get_node_comments_with_flags($nid) {
+//todo need to remove the nid bind out of this so that it returns all comments.
+function spam_detect_get_all_comments_with_flags($nid) {
   $query = 'SELECT c.cid, c.nid, c.subject, c.name, c.mail as email, c.homepage, d.comment_body_value as body, fl.name as
             flag_name, fc.fid as flag_id, fc.count as flag_count
              FROM {comment} c
              LEFT JOIN {field_data_comment_body} d ON c.cid = d.entity_id
              LEFT JOIN {flag_counts} fc ON c.cid = fc.entity_id
              LEFT JOIN {flag} fl ON fc.fid = fl.fid
-             WHERE nid = :nid
              ORDER BY c.cid ASC';
-  //
-  $bind = array(':nid' => $nid);
-  return db_query($query, $bind)->fetchAllAssoc('cid');
+  return db_query($query)->fetchAllAssoc('cid');
+}
+
+function spam_detect_composite_get_node_comments_from_all_comments(array $comments, $nid) {
+  return array_filter(
+    $comments,
+    function ($obj) use ($nid) {
+      if (isset($obj->nid) && ($obj->nid == $nid)) {
+        return TRUE;
+      }
+      return FALSE;
+    }
+  );
 }
 
 /*-----  End of Utils  ------*/
