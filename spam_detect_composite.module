@@ -167,8 +167,10 @@ function spam_detect_composite_first_word($text) {
 function spam_detect_composite_author_name_check($name) {
   $increase = variable_get('spam_detect_composite_author_name_check');
   if ($increase <= 0) return 0;
-  $search = 'http://';
-  if (strpos($name, $search) !== FALSE) return $increase;
+  $needles = array('http://', 'https://');
+  foreach ($needles as $search) {
+    if (strpos($name, $search) !== FALSE) return $increase;
+  }
   return 0;
 }
 
