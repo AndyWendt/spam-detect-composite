@@ -31,14 +31,13 @@ function spam_detect_composite_menu() {
  * Implements hook_spam_detect().
  */
 function spam_detect_composite_spam_detect($text, stdClass $context = NULL) {
-  $spam_score = array();
+  $spam_score = spam_detect_composite_text_scores($text);
   if (is_object($context)) {
     $context_score = spam_detect_composite_context_scores($context);
     $spam_score = array_merge($spam_score, $context_score);
   }
-  $text_score = spam_detect_composite_text_scores($text);
-  debug(array_merge($spam_score, $text_score));
-  return spam_detect_composite_calculate_combined_score(array_merge($spam_score, $text_score));
+  debug($spam_score);
+  return spam_detect_composite_calculate_combined_score($spam_score);
 }
 
 /*-----  End of Hook Implementations  ------*/
@@ -207,7 +206,6 @@ function spam_detect_composite_calculate_combined_score(array $spam_score_array)
   if (($spam_score / $spam_threshold) > 1) return 1;
   return $spam_score / $spam_threshold;
 }
-
 
 /*------- End Calculate Scores ---------*/
 
