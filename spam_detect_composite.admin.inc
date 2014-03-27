@@ -27,7 +27,6 @@ free
 EOT;
 }
 
-
 /**
  * Settings form callback.
  *
@@ -63,7 +62,6 @@ function spam_detect_composite_get_settings_form_fields() {
     '#max_length'    => 2,
     '#size'          => 2,
   );
-
   $form['spam_detect_composite_link_body_count_decrease_spamminess'] = array(
     '#title'         => t('Link Count in Body: Decrease Spamminess Score'),
     '#description'   => t('Amount to decrease spamminess if link count < threshold.'),
@@ -71,9 +69,7 @@ function spam_detect_composite_get_settings_form_fields() {
     '#type'          => 'textfield',
     '#max_length'    => 2,
     '#size'          => 2,
-
   );
-
   $form['spam_detect_composite_link_body_count_increase_spamminess'] = array(
     '#title'         => t('Link Count in Body: Increase Spamminess Score'),
     '#description'   => t('Amount to increase spamminess per link if link count > threshold.'),
@@ -81,7 +77,6 @@ function spam_detect_composite_get_settings_form_fields() {
     '#type'          => 'textfield',
     '#max_length'    => 2,
     '#size'          => 2,
-
   );
 
   ///// Body Length /////
@@ -92,7 +87,6 @@ function spam_detect_composite_get_settings_form_fields() {
     '#type'          => 'textfield',
     '#max_length'    => 2,
     '#size'          => 2,
-
   );
 
   $form['spam_detect_composite_body_length_increase_spamminess'] = array(
@@ -102,9 +96,7 @@ function spam_detect_composite_get_settings_form_fields() {
     '#type'          => 'textfield',
     '#max_length'    => 2,
     '#size'          => 2,
-
   );
-
   $form['spam_detect_composite_body_length_decrease_spamminess'] = array(
     '#title'         => t('Body Length: Decrease Spamminess Score'),
     '#description'   => t('Amount to decrease Spam Score by if Body Length > Threshold'),
@@ -114,7 +106,6 @@ function spam_detect_composite_get_settings_form_fields() {
     '#size'          => 2,
 
   );
-
 
   ///// Previous Comments Status ////
   $form['spam_detect_composite_spam_flag_name'] = array(
@@ -138,7 +129,6 @@ function spam_detect_composite_get_settings_form_fields() {
     '#max_length'    => 2,
     '#size'          => 2,
   );
-
   $form['spam_detect_composite_status_of_previous_comments_decrease'] = array(
     '#type'          => 'textfield',
     '#title'         => t('Previous Comments from Author: Increase Spamminess Score'),
@@ -161,7 +151,6 @@ function spam_detect_composite_get_settings_form_fields() {
     '#max_length'    => 2,
     '#size'          => 2,
   );
-
   $form['spam_detect_composite_words_characters_list']     = array(
     '#type'          => 'textarea',
     '#title'         => t('URL Words Characters List'),
@@ -197,7 +186,6 @@ function spam_detect_composite_get_settings_form_fields() {
     '#max_length'    => 2,
     '#size'          => 2,
   );
-
   $form['spam_detect_composite_url_length_increase'] = array(
     '#type'          => 'textfield',
     '#title'         => t('URL Length: Increase Spamminess Score'),
@@ -206,7 +194,6 @@ function spam_detect_composite_get_settings_form_fields() {
     '#max_length'    => 2,
     '#size'          => 2,
   );
-
 
   ///// Body Starts With /////
   $form['spam_detect_composite_first_word_increase'] = array(
@@ -219,7 +206,6 @@ function spam_detect_composite_get_settings_form_fields() {
     '#max_length'    => 2,
     '#size'          => 2,
   );
-
   $form['spam_detect_composite_first_word_list']     = array(
     '#type'          => 'textarea',
     '#title'         => t('First Word is Spammy List'),
@@ -250,7 +236,6 @@ function spam_detect_composite_get_settings_form_fields() {
     '#max_length'    => 2,
     '#size'          => 2,
   );
-
 
   ///// Random Character Match or Consonants //////
   $form['spam_detect_composite_consonants_increase'] = array(
