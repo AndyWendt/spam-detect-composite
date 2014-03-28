@@ -1,0 +1,8 @@
+name = Spam Detect Composite Rules
+description = Integrates Spam Detect Composite with Rules.
+dependencies[] = rules
+dependencies[] = spam_detect
+dependencies[] = spam_detect_composite
+package = Spam Detect Composite
+files[] = spam_detect_composite_rules.rules.inc
+core = 7.x
