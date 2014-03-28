@@ -6,7 +6,7 @@
  */
 
 module_load_include('inc', 'spam_detect_composite', 'spam_detect_composite.admin');
-
+//todo extract out all variable_get()'s and put into a function with an array
 /*============================================
 =            Hook Implementations            =
 ============================================*/
@@ -31,13 +31,14 @@ function spam_detect_composite_menu() {
  * Implements hook_spam_detect().
  */
 function spam_detect_composite_spam_detect($text, stdClass $context = NULL) {
-  $spam_score = spam_detect_composite_text_scores($text);
+  $vars       = spam_detect_composite_get_vars();
+  $spam_score = spam_detect_composite_text_scores($text, $vars);
   if (is_object($context)) {
-    $context_score = spam_detect_composite_context_scores($context);
-    $spam_score = array_merge($spam_score, $context_score);
+    $context_score = spam_detect_composite_context_scores($context, $vars);
+    $spam_score    = array_merge($spam_score, $context_score);
   }
   debug($spam_score);
-  return spam_detect_composite_calculate_combined_score($spam_score);
+  return spam_detect_composite_calculate_combined_score($spam_score, $vars->calculate_combined_score->threshold);
 }
 
 /*-----  End of Hook Implementations  ------*/
@@ -45,50 +46,100 @@ function spam_detect_composite_spam_detect($text, stdClass $context = NULL) {
 /*======================================
 =           Calculate Scores           =
 ========================================*/
-function spam_detect_composite_context_scores(stdClass $context) {
+
+/**
+ * @param          $text text to test for spamminess
+ * @param stdClass $vars array of objects
+ *
+ * @return array
+ */
+function spam_detect_composite_text_scores($text, stdClass $vars) {
+  $links_array = array_filter(spam_detect_composite_find_links($text));
+  if (isset($links_array) && !empty($links_array)) {
+    $spam_score['links_in_body'] = spam_detect_composite_links_in_body_score(
+      count($links_array),
+      $vars->links_in_body_score->increase,
+      $vars->links_in_body_score->decrease,
+      $vars->links_in_body_score->threshold
+    );
+  }
+
+  $spam_score['body_length'] = spam_detect_composite_body_length_score(
+    $text,
+    count($links_array),
+    $vars->body_length_score->increase,
+    $vars->body_length_score->decrease,
+    $vars->body_length_score->threshold
+  );
+  $spam_score['consonants']  = spam_detect_composite_consonants($text, $vars->consonants->increase);
+  $spam_score['first_word']  = spam_detect_composite_first_word(
+    $text,
+    $vars->first_word->increase,
+    $vars->first_word->first_word_list
+  );
+
+  return $spam_score;
+}
+
+/**
+ * @param stdClass $context object of type comment:node
+ * @param stdClass $vars array of objects
+ *
+ * @return array
+ */
+function spam_detect_composite_context_scores(stdClass $context, stdClass $vars) {
   $nid           = $context->nid;
   $site_comments = spam_detect_get_all_comments_with_flags($nid);
   $node_comments = spam_detect_composite_get_node_comments_from_all_comments($site_comments, $nid);
   array_pop($site_comments);
   $last_comment = array_pop($node_comments);
 
-  $spam_score['author_name'] = spam_detect_composite_author_name_check($last_comment->name);
-  $spam_score['url_length']    = spam_detect_composite_url_length($last_comment->author_url);
-  $spam_score['tlds']          = spam_detect_composite_tlds($last_comment->author_url);
-  $spam_score['words_chars']   = spam_detect_composite_url_words_characters($last_comment->author_url);
+  $spam_score['author_name'] = spam_detect_composite_author_name_check(
+    $last_comment->name,
+    $vars->author_name_check->increase
+  );
+  $spam_score['url_length']  = spam_detect_composite_url_length(
+    $last_comment->author_url,
+    $vars->url_length->increase,
+    $vars->url_length->threshold
+  );
+  $spam_score['tlds']        = spam_detect_composite_tlds(
+    $last_comment->author_url,
+    $vars->tlds->increase,
+    $vars->tlds->spammy_tld_list
+  );
+  $spam_score['words_chars'] = spam_detect_composite_url_words_characters(
+    $last_comment->author_url,
+    $vars->url_words_characters->increase,
+    $vars->url_words_characters->words_chars_list
+  );
 
   $spam_score['body_in_previous_comment'] = 0;
   foreach ($node_comments as $node_single_comment) {
     $spam_score['body_in_previous_comment'] +=
-      spam_detect_composite_body_in_previous_comment($node_single_comment, $last_comment);
+      spam_detect_composite_body_in_previous_comment(
+        $node_single_comment,
+        $last_comment,
+        $vars->body_in_previous_comment->increase
+      );
   }
 
   $spam_score['status_of_previous_comments'] = 0;
   foreach ($site_comments as $site_single_comment) {
     $spam_score['status_of_previous_comments'] +=
-      spam_detect_composite_status_of_previous_comment($site_single_comment, $last_comment);
+      spam_detect_composite_status_of_previous_comment(
+        $site_single_comment,
+        $last_comment,
+        $vars->status_of_previous_comment->increase,
+        $vars->status_of_previous_comment->decrease,
+        $vars->status_of_previous_comment->flag
+      );
   }
   return $spam_score;
 }
 
-function spam_detect_composite_text_scores($text) {
-  $links_array = array_filter(spam_detect_composite_find_links($text));
-  if (isset($links_array) && !empty($links_array)) {
-    $spam_score['links_in_body'] = spam_detect_composite_links_in_body_score(count($links_array));
-  }
-
-  $spam_score['body_length'] = spam_detect_composite_body_length_score($text, count($links_array));
-  $spam_score['consonants']  = spam_detect_composite_consonants($text);
-  $spam_score['first_word']  = spam_detect_composite_first_word($text);
-
-  return $spam_score;
-}
-
-
-function spam_detect_composite_calculate_combined_score(array $spam_score_array) {
+function spam_detect_composite_calculate_combined_score(array $spam_score_array, $spam_threshold) {
   $spam_score     = array_sum($spam_score_array);
-  $spam_threshold = variable_get('spam_detect_composite_score_threshold');
-
   if ($spam_score < 0) return 0;
   if (($spam_score / $spam_threshold) > 1) return 1;
   return $spam_score / $spam_threshold;
@@ -96,82 +147,60 @@ function spam_detect_composite_calculate_combined_score(array $spam_score_array)
 
 /*------- End Calculate Scores ---------*/
 
-
 /*==================================
 =            Spam Tests            =
 ==================================*/
 
-function spam_detect_composite_links_in_body_score($link_count) {
-  $threshold = variable_get('spam_detect_composite_link_body_count');
+function spam_detect_composite_links_in_body_score($link_count, $increase, $decrease, $threshold) {
   if ($threshold < 0) return 0; // Filter is set to off: -1
-  $decrease   = variable_get('spam_detect_composite_link_body_count_decrease_spamminess');
-  $increase   = variable_get('spam_detect_composite_link_body_count_increase_spamminess');
-
   if ($link_count < $threshold) return -$decrease;
   if ($link_count >= $threshold) return $link_count * $increase;
 }
 
-function spam_detect_composite_body_length_score($text, $link_count) {
-  $threshold = variable_get('spam_detect_composite_body_length_threshold');
+function spam_detect_composite_body_length_score($text, $link_count, $increase, $decrease, $threshold) {
   if ($threshold < 0) return 0; // Filter is set to off: -1
-  $decrease = variable_get('spam_detect_composite_body_length_decrease_spamminess');
-  $increase = variable_get('spam_detect_composite_body_length_increase_spamminess');
-
-  $length     = strlen(str_replace(' ', '', $text));
+  $length = strlen(str_replace(' ', '', $text));
   if (($length > $threshold) && ($link_count == 0)) return -$decrease;
   if ($length < $threshold) return $increase;
   return 0;
 }
 
-function spam_detect_composite_status_of_previous_comment($comment, $last_comment) {
-  $increase = variable_get('spam_detect_composite_status_of_previous_comments_increase');
+function spam_detect_composite_status_of_previous_comment($comment, $last_comment, $increase, $decrease, $flag) {
   if ($increase <= 0) return 0;
-
-  $flag     = variable_get('spam_detect_composite_spam_flag_name');
-  $decrease = variable_get('spam_detect_composite_status_of_previous_comments_decrease');
-
   if ($last_comment->email == $comment->email) {
     return ($comment->flag_name == trim($flag)) ? $increase : -$decrease;
   }
   return 0;
 }
 
-function spam_detect_composite_url_words_characters($link) {
-  $increase = variable_get('spam_detect_composite_words_characters_increase');
+function spam_detect_composite_url_words_characters($link, $increase, $words_chars_list) {
   if ($increase <= 0) return 0; // Filter set to off: -1
   $spam_score = array(0);
-
-  foreach (spam_detect_composite_get_words_chars_list() as $word_char) {
+  foreach ($words_chars_list as $word_char) {
     $spam_score[] = $increase * substr_count($link, $word_char);
   }
   return array_sum($spam_score);
 }
 
-function spam_detect_composite_tlds($link) {
-  if ( ! class_exists('Pdp\Parser')) return 0;
-  $increase = variable_get('spam_detect_composite_tld_increase');
+function spam_detect_composite_tlds($link, $increase, $spammy_tld_list) {
+  if (!class_exists('Pdp\Parser')) return 0;
   if ($increase <= 0) return 0;
-
   $tld = spam_detect_composite_get_tld_from_link($link);
-  if (in_array($tld, spam_detect_composite_get_spammy_tld_list())) return $increase;
+  if (in_array($tld, $spammy_tld_list)) return $increase;
   return 0;
 }
 
-function spam_detect_composite_url_length($link) {
-  $threshold = variable_get('spam_detect_composite_url_length_threshold');
+function spam_detect_composite_url_length($link, $increase, $threshold) {
   if ($threshold < 0) return 0;
-  $increase = variable_get('spam_detect_composite_url_length_increase');
-
-  $url_length   = strlen(str_replace(array('http://', 'https://'), '', $link));
+  $url_length = strlen(str_replace(array('http://', 'https://'), '', $link));
   if ($url_length > $threshold) return $increase;
   return 0;
 }
 
-function spam_detect_composite_first_word($text) {
-  $increase = variable_get('spam_detect_composite_first_word_increase');
+function spam_detect_composite_first_word($text, $increase, $first_word_list) {
   if ($increase <= 0) return 0; // filter set to off
 
-  $spammy_words = strtolower(variable_get('spam_detect_composite_first_word_list'));
+  $spammy_words = strtolower($first_word_list);
   $spammy_words = array_map('trim', explode("\n", $spammy_words));
 
   $first_word = strtolower(strtok($text, ' '));
@@ -181,8 +210,7 @@ function spam_detect_composite_first_word($text) {
   return 0;
 }
 
-function spam_detect_composite_author_name_check($name) {
-  $increase = variable_get('spam_detect_composite_author_name_check');
+function spam_detect_composite_author_name_check($name, $increase) {
   if ($increase <= 0) return 0;
   $needles = array('http://', 'https://');
   foreach ($needles as $search) {
@@ -192,17 +220,14 @@ function spam_detect_composite_author_name_check($name) {
 }
 
 //todo this may need to be changed to where it is checking the author and seeing if they are using the same body...
-function spam_detect_composite_body_in_previous_comment($comment, $last_comment) {
-  $increase = variable_get('spam_detect_composite_body_in_previous_comment');
+function spam_detect_composite_body_in_previous_comment($comment, $last_comment, $increase) {
   if ($increase <= 0) return 0;
   if (trim($last_comment->body) == trim($comment->body)) return $increase;
   return 0;
 }
 
-function spam_detect_composite_consonants($text) {
-  $increase = variable_get('spam_detect_composite_consonants_increase');
+function spam_detect_composite_consonants($text, $increase) {
   if ($increase <= 0) return 0; // Filter set to off: -1
-
   preg_match_all('/[bcdfghjklmnpqrstvwxz]{6}/i', $text, $matches); // matches 6 or more consonants
   return $spam_score = count($matches[0]) * $increase;
 }
@@ -216,7 +241,6 @@ function spam_detect_composite_consonants($text) {
 
 function spam_detect_composite_find_links($text) {
   // Regex by John Gruber: http://daringfireball.net/2010/07/improved_regex_for_matching_urls // License: Public Domain
-
   $regex = '~(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))
   *\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))~';
   preg_match_all($regex, $text, $links_array);
@@ -264,13 +288,61 @@ function spam_detect_composite_get_tld_from_link($link) {
   $pslManager = new Pdp\PublicSuffixListManager();
   $parser     = new Pdp\Parser($pslManager->getList());
 
-  $url    = $parser->parseUrl($link);
+  $url = $parser->parseUrl($link);
   return $tlds[] = $url->host->publicSuffix;
 }
 
 function spam_detect_composite_get_words_chars_list() {
   $words_chars_list = explode("\n", strtolower(variable_get('spam_detect_composite_words_characters_list')));
   return $words_chars_list = array_map('trim', $words_chars_list);
+}
+
+function spam_detect_composite_get_vars() {
+  return $vars = (object) array(
+    'links_in_body_score'        => (object) array(
+      'threshold' => variable_get('spam_detect_composite_link_body_count'),
+      'increase'  => variable_get('spam_detect_composite_link_body_count_increase_spamminess'),
+      'decrease'  => variable_get('spam_detect_composite_link_body_count_decrease_spamminess'),
+    ),
+    'body_length_score'          => (object) array(
+      'threshold' => variable_get('spam_detect_composite_body_length_threshold'),
+      'increase'  => variable_get('spam_detect_composite_body_length_increase_spamminess'),
+      'decrease'  => variable_get('spam_detect_composite_body_length_decrease_spamminess'),
+    ),
+    'status_of_previous_comment' => (object) array(
+      'increase' => variable_get('spam_detect_composite_status_of_previous_comments_increase'),
+      'decrease' => variable_get('spam_detect_composite_status_of_previous_comments_decrease'),
+      'flag'     => variable_get('spam_detect_composite_spam_flag_name'),
+    ),
+    'url_words_characters'       => (object) array(
+      'increase'         => variable_get('spam_detect_composite_words_characters_increase'),
+      'words_chars_list' => spam_detect_composite_get_words_chars_list(),
+    ),
+    'tlds'                       => (object) array(
+      'increase'        => variable_get('spam_detect_composite_tld_increase'),
+      'spammy_tld_list' => spam_detect_composite_get_spammy_tld_list(),
+    ),
+    'url_length'                 => (object) array(
+      'increase'  => variable_get('spam_detect_composite_url_length_increase'),
+      'threshold' => variable_get('spam_detect_composite_url_length_threshold'),
+    ),
+    'first_word'                 => (object) array(
+      'increase'        => variable_get('spam_detect_composite_first_word_increase'),
+      'first_word_list' => variable_get('spam_detect_composite_first_word_list'),
+    ),
+    'author_name_check'          => (object) array(
+      'increase' => variable_get('spam_detect_composite_author_name_check'),
+    ),
+    'body_in_previous_comment'   => (object) array(
+      'increase' => variable_get('spam_detect_composite_body_in_previous_comment'),
+    ),
+    'consonants'                 => (object) array(
+      'increase' => variable_get('spam_detect_composite_consonants_increase'),
+    ),
+    'calculate_combined_score' => (object) array(
+      'threshold' => variable_get('spam_detect_composite_score_threshold'),
+    ),
+  );
 }
 
 /*-----  End of Utils  ------*/
