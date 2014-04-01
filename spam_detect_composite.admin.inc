@@ -114,7 +114,7 @@ function spam_detect_composite_get_settings_form_fields() {
     '#description'   => t(
       'Spam Flag machine name created using the Flags Module.  Needed for testing previous comments.'
     ),
-    '#default_value' => variable_get('spam_detect_composite_spam_flag_name', ''),
+    '#default_value' => variable_get('spam_detect_composite_spam_flag_name', 'is_spam'),
     '#max_length'    => 50,
     '#size'          => 50,
   );
