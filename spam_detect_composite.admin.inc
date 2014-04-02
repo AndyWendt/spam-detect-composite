@@ -52,11 +52,12 @@ function spam_detect_composite_get_settings_form_fields() {
   );
 
   /////  Links in Body /////
-  $form['spam_detect_composite_link_body_count'] = array(
+  $form['spam_detect_composite_link_body_count']                     = array(
     '#type'          => 'textfield',
     '#title'         => t('Link Count in Body: Threshold'),
     '#description'   => t(
-      'If link count in text is greater than this number then increase spamminess score.  If lower, decrease spamminess score. Set this to -1 to disable this filter.'
+      'If link count in text is greater than this number then increase spamminess score.  If lower, decrease spamminess
+      score. Set this to -1 to disable this filter.'
     ),
     '#default_value' => variable_get('spam_detect_composite_link_body_count', 2),
     '#max_length'    => 2,
@@ -162,7 +163,7 @@ function spam_detect_composite_get_settings_form_fields() {
   );
 
   ///// TLDs /////
-  $form['spam_detect_composite_tld_increase']        = array(
+  $form['spam_detect_composite_tld_increase'] = array(
     '#type'          => 'textfield',
     '#title'         => t('TLD: Increase Spamminess Score'),
     '#description'   => t('Amount to increase Spam Score if tld matches value in list.  Set to -1 to disable filter.'),
@@ -170,7 +171,7 @@ function spam_detect_composite_get_settings_form_fields() {
     '#max_length'    => 2,
     '#size'          => 2,
   );
-  $form['spam_detect_composite_tld_list']            = array(
+  $form['spam_detect_composite_tld_list']     = array(
     '#type'          => 'textarea',
     '#title'         => t('TLD List'),
     '#description'   => t('Enter each tld on a new line. Supports second level domains such as "co.uk"'),
@@ -186,7 +187,7 @@ function spam_detect_composite_get_settings_form_fields() {
     '#max_length'    => 2,
     '#size'          => 2,
   );
-  $form['spam_detect_composite_url_length_increase'] = array(
+  $form['spam_detect_composite_url_length_increase']  = array(
     '#type'          => 'textfield',
     '#title'         => t('URL Length: Increase Spamminess Score'),
     '#description'   => t('Amount to increase Spam Score if url length > threshold.'),

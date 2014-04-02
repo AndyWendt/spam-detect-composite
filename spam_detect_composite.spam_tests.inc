@@ -22,7 +22,7 @@ function spam_detect_composite_status_of_previous_comment(
   $flag
 ) {
   if ($increase <= 0) return 0;
-  if ($last_comment->email == $comment->email) {
+  if (strtolower($last_comment->email) == strtolower($comment->email)) {
     return ($comment->flag_name == trim($flag)) ? $increase : -$decrease;
   }
   return 0;
@@ -73,7 +73,6 @@ function spam_detect_composite_author_name_check($name, $increase) {
   return array_sum($count) * $increase;
 }
 
-//todo this may need to be changed to where it is checking the author and seeing if they are using the same body...
 function spam_detect_composite_body_in_previous_comment(stdClass $comment, stdClass $last_comment, $increase) {
   if ($increase <= 0) return 0;
   if (trim($last_comment->body) == trim($comment->body)) return $increase;

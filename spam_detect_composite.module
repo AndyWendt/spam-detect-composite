@@ -58,7 +58,6 @@ function spam_detect_composite_text_scores($text, stdClass $vars) {
     $vars->body_length_score->decrease,
     $vars->body_length_score->threshold
   );
-  $spam_score['consonants']  = spam_detect_composite_consonants($text, $vars->consonants->increase);
   $spam_score['first_word']  = spam_detect_composite_first_word(
     $text,
     $vars->first_word->increase,
@@ -101,6 +100,13 @@ function spam_detect_composite_context_scores(stdClass $context, stdClass $vars)
     $vars->url_words_characters->words_chars_list
   );
 
+  $spam_score['consonants_email'] = spam_detect_composite_consonants(
+    $last_comment->email,
+    $vars->consonants->increase
+  );
+
+  $spam_score['consonants_name'] = spam_detect_composite_consonants($last_comment->name, $vars->consonants->increase);
+
   $spam_score['body_in_previous_comment'] = 0;
   foreach ($node_comments as $node_single_comment) {
     $spam_score['body_in_previous_comment'] +=
@@ -127,7 +133,7 @@ function spam_detect_composite_context_scores(stdClass $context, stdClass $vars)
 
 function spam_detect_composite_calculate_combined_score(array $spam_score_array, $spam_threshold) {
   $spam_score = array_sum($spam_score_array);
-  if ($spam_score < 0) return 0;
+  if ($spam_score <= 0) return 0;
   if (($spam_score / $spam_threshold) > 1) return 1;
   return $spam_score / $spam_threshold;
 }

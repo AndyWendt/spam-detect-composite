@@ -8,7 +8,7 @@ function spam_detect_composite_find_links($text) {
   return $links_array[0];
 }
 
-function spam_detect_get_all_comments_with_flags($nid) {
+function spam_detect_get_all_comments_with_flags() {
   $query = 'SELECT c.cid, c.nid, c.subject, c.name, c.mail as email, c.homepage as author_url, d.comment_body_value as body, fl.name as
             flag_name, fc.fid as flag_id, fc.count as flag_count
              FROM {comment} c
