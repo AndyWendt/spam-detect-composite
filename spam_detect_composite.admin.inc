@@ -1,4 +1,5 @@
 <?php
+include_once('spam_detect_composite.admin_validation.inc');
 
 function _spam_detect_composite_first_word_list() {
   return <<<EOT
