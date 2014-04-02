@@ -1,0 +1,9 @@
+<?php
+
+/**
+ * @file
+ * Integrate Spam Detect Composite with Rules.
+ *
+ * This .module file currently does nothing.
+ */
+

@@ -1,0 +1,8 @@
+<?php
+/**
+ * @file
+ * Code for the Spam Detect Composite Filters and Rules feature.
+ */
+
+include_once 'spam_detect_composite_example.features.inc';
+

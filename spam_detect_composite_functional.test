@@ -1,0 +1,328 @@
+<?php
+
+class SpamDetectCompositeFunctionalTest extends DrupalWebTestCase {
+
+  protected $composite_threshold = 15;
+  protected $nodes;
+  protected $user;
+
+  public static function getInfo() {
+    return array(
+      'name'        => 'Spam Detect Composite Functional Test',
+      'description' => 'Test spam detection with Spam Detect Composite.',
+      'group'       => 'Spam Detect',
+    );
+  }
+
+  public function setUp() {
+    parent::setUp('spam_detect_composite_example');
+    $this->nodes[] = $this->drupalCreateNode();
+    $this->nodes[] = $this->drupalCreateNode();
+    $this->user    = $this->drupalCreateUser(array('administer spam detect'));
+    $this->drupalLogin($this->user);
+  }
+
+
+  public function testSpamDetectCompositeComments() {
+    $this->set_module_defaults();
+
+    $comments[] = $this->getCommentObject1($this->nodes[0]->nid);
+    $comments[] = $this->getCommentObject2($this->nodes[1]->nid);
+    $comments[] = $this->getCommentObject3($this->nodes[1]->nid);
+
+    foreach ($comments as $comment) {
+      comment_submit($comment);
+      comment_save($comment);
+    }
+    $comments = spam_detect_get_all_comments_with_flags();
+
+    $message = 'Comment is Spam';
+    $this->assertEqual($comments[1]->flag_name, 'is_spam', $message);
+
+    $message = 'Comment is Spam';
+    $this->assertEqual($comments[2]->flag_name, 'is_spam', $message);
+
+    $message = 'Comment is Not Spam';
+    $this->assertNull($comments[3]->flag_name, $message);
+  }
+
+  protected function getCommentObject1($nid) {
+    //    'body_length' => '1',
+    //    'first_word' => '10',
+    //    'author_name' => 1,
+    //    'url_length' => '1',
+    //    'tlds' => '1',
+    //    'words_chars' => 3,
+    //    'consonants_email' => 0,
+    //    'consonants_name' => 0,
+    //    'body_in_previous_comment' => 0,
+    //    'status_of_previous_comments' => 0,
+
+    return $comment = (object) array(
+      'nid' => $nid,
+      'cid' => 0,
+      'pid' => 0,
+      'uid' => 0,
+      'mail' => 'john@smith.org',
+      'name' => '<a href="http://john.com">john</a>',
+      'is_anonymous' => 0,
+      'homepage' => 'http://www.asdf.de/free?asdf=asdf&asdflj=34',
+      'status' => COMMENT_PUBLISHED,
+      'subject' => 'test',
+      'language' => LANGUAGE_NONE,
+      'comment_body' => array(
+        LANGUAGE_NONE => array(
+          0 => array (
+            'value' => 'Interesting',
+            'format' => 'filtered_html'
+          )
+        )
+      ),
+    );
+  }
+
+  protected function getCommentObject2($nid) {
+    //  'body_length' => '1',
+    //  'first_word' => 0,
+    //  'author_name' => 1,
+    //  'url_length' => '1',
+    //  'tlds' => '1',
+    //  'words_chars' => 3,
+    //  'consonants_email' => 5,
+    //  'consonants_name' => 4,
+    //  'body_in_previous_comment' => 0,
+    //  'status_of_previous_comments' => 0,
+
+    return $comment = (object) array(
+      'nid' => $nid,
+      'cid' => 0,
+      'pid' => 0,
+      'uid' => 0,
+      'mail' => 'johnqrstvw@qrstvwqrstvwqrstvwqrstvw.org',
+      'name' => '<a href="http://qrstvwqrstvw.com">qrstvwqrstvw</a>',
+      'is_anonymous' => 0,
+      'homepage' => 'http://www.asdf.de/free?asdf=asdf&asdflj=34',
+      'status' => COMMENT_PUBLISHED,
+      'subject' => 'test',
+      'language' => LANGUAGE_NONE,
+      'comment_body' => array(
+        LANGUAGE_NONE => array(
+          0 => array (
+            'value' => 'spam',
+            'format' => 'filtered_html'
+          )
+        )
+      ),
+    );
+  }
+
+  protected function getCommentObject3($nid) {
+    //  'body_length' => 0,
+    //  'first_word' => 0,
+    //  'author_name' => 0,
+    //  'url_length' => 0,
+    //  'tlds' => 0,
+    //  'words_chars' => 0,
+    //  'consonants_email' => 0,
+    //  'consonants_name' => 0,
+    //  'body_in_previous_comment' => 0,
+    //  'status_of_previous_comments' => 1,
+
+    return $comment = (object) array(
+      'nid' => $nid,
+      'cid' => 0,
+      'pid' => 0,
+      'uid' => 0,
+      'mail' => 'john@smith.org',
+      'name' => 'John Smith',
+      'is_anonymous' => 0,
+      'homepage' => 'http://www.smith.org',
+      'status' => COMMENT_PUBLISHED,
+      'subject' => 'test',
+      'language' => LANGUAGE_NONE,
+      'comment_body' => array(
+        LANGUAGE_NONE => array(
+          0 => array (
+            'value' => 'This is a Comment.  Wow.',
+            'format' => 'filtered_html'
+          )
+        )
+      ),
+    );
+  }
+
+
+
+  protected function set_module_defaults() {
+    /////// Composite Score Threshold /////
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_score_threshold' => $this->composite_threshold,
+      ),
+      t('Save configuration')
+    );
+
+    /////  Links in Body /////
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_link_body_count' => 2,
+      ),
+      t('Save configuration')
+    );
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_link_body_count_decrease_spamminess' => 2,
+      ),
+      t('Save configuration')
+    );
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_link_body_count_increase_spamminess' => 1,
+      ),
+      t('Save configuration')
+    );
+
+    ///// Body Length /////
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_body_length_threshold' => 20,
+      ),
+      t('Save configuration')
+    );
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_body_length_decrease_spamminess' => 2,
+      ),
+      t('Save configuration')
+    );
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_body_length_increase_spamminess' => 1,
+      ),
+      t('Save configuration')
+    );
+
+    ///// Previous Comments Status ////
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_spam_flag_name' => 'is_spam',
+      ),
+      t('Save configuration')
+    );
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_status_of_previous_comments_increase' => 1,
+      ),
+      t('Save configuration')
+    );
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_status_of_previous_comments_decrease' => 1,
+      ),
+      t('Save configuration')
+    );
+
+    ////// Certain Words or Characters //////
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_words_characters_increase' => 1,
+      ),
+      t('Save configuration')
+    );
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_words_characters_list' => _spam_detect_composite_word_characters_list(),
+      ),
+      t('Save configuration')
+    );
+
+    ///// TLDs /////
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_tld_increase' => 1,
+      ),
+      t('Save configuration')
+    );
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_tld_list' => _spam_detect_composite_tld_list(),
+      ),
+      t('Save configuration')
+    );
+
+    ///// URL Length //////
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_url_length_threshold' => 30,
+      ),
+      t('Save configuration')
+    );
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_url_length_increase' => 1,
+      ),
+      t('Save configuration')
+    );
+
+    ///// Body Starts With /////
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_first_word_increase' => 10,
+      ),
+      t('Save configuration')
+    );
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_first_word_list' => _spam_detect_composite_first_word_list(),
+      ),
+      t('Save configuration')
+    );
+
+    ///// Author Name /////
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_author_name_check' => 2,
+      ),
+      t('Save configuration')
+    );
+
+    ///// Body Used in Previous Comment /////
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_body_in_previous_comment' => 1,
+      ),
+      t('Save configuration')
+    );
+
+    ///// Random Character Match or Consonants //////
+    $this->drupalPost(
+      'admin/config/system/spam_detect/composite',
+      array(
+        'spam_detect_composite_consonants_increase' => 1,
+      ),
+      t('Save configuration')
+    );
+
+  }
+
+}

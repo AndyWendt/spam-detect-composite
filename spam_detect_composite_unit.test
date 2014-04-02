@@ -1,0 +1,257 @@
+<?php
+
+class SpamDetectCompositeUnitTestCase extends DrupalUnitTestCase {
+  protected $off = -1;
+  
+  public static function getInfo() {
+    return array(
+      'name' => 'Spam Detect Composite Unit Tests',
+      'description' => 'Unit Tests for Spam Detect Composite',
+      'group' => 'Spam Detect',
+    );
+  }
+
+  public function testCalculateCombinedScore() {
+    $threshold = 10;
+
+    $spam_score = array(-2, -2, -4);
+    $result = spam_detect_composite_calculate_combined_score($spam_score, $threshold);
+    $message = 'Should return 0 since all are negative';
+    $this->assertEqual(0, $result, $message);
+
+    $spam_score = array(5, 5, 5);
+    $result = spam_detect_composite_calculate_combined_score($spam_score, $threshold);
+    $message = 'Should Return 1';
+    $this->assertEqual(1, $result, $result);
+
+    $spam_score = array(2, 2, 3);
+    $result = spam_detect_composite_calculate_combined_score($spam_score, $threshold);
+    $message = 'Should return array_sum($spam_score) / $spam_threshold';
+    $this->assertEqual(array_sum($spam_score) / $threshold, $result, $message);
+  }
+
+  public function testLinksInBody(){
+    $increase = 1;
+    $decrease = 2;
+    $threshold = 2;
+
+    $link_count = 100;
+    $result = spam_detect_composite_links_in_body_score($link_count, $increase, $decrease, $threshold);
+    $message = '100 links should return 100 * $increase';
+    $this->assertEqual($link_count * $increase, $result, $message);
+
+    $link_count = null;
+    $result = spam_detect_composite_links_in_body_score($link_count, $increase, $decrease, $threshold);
+    $message = 'null should return decrease';
+    $this->assertEqual(-$decrease, $result, $message);
+
+    $link_count = 12;
+    $result = spam_detect_composite_links_in_body_score($link_count, $increase, $decrease, $this->off);
+    $message = 'Should return 0; filter is off.';
+    $this->assertEqual(0, $result, $message);
+  }
+
+  public function testBodyLength() {
+    $decrease = 2;
+    $increase = 1;
+    $threshold = 20;
+
+    $text = 'asdfasdf';
+    $link_count = 22;
+    $result = spam_detect_composite_body_length_score($text, $link_count, $increase, $decrease, $this->off);
+    $message = 'Should return 0; filter is off.';
+    $this->assertEqual(0, $result, $message);
+
+    $text = 'asdfasdf';
+    $link_count = 2;
+    $result = spam_detect_composite_body_length_score($text, $link_count, $increase, $decrease, $threshold);
+    $message = 'Should return $increase because text is too short.';
+    $this->assertEqual($increase, $result, $message);
+
+    $text = 'asdf;as as;ldfj asldf; as;lfd as;ldf';
+    $link_count = 2;
+    $result = spam_detect_composite_body_length_score($text, $link_count, $increase, $decrease , $threshold);
+    $message = 'Should return 0 since links are present';
+    $this->assertEqual(0, $result, $message);
+
+    $text = 'as;ldflsjfd a;lsdfj ;laskfj as;lfdj as;lfdj';
+    $link_count = 0;
+    $result = spam_detect_composite_body_length_score($text, $link_count, $increase, $decrease, $threshold);
+    $message = 'Should return -$decrease since no links & > threshold';
+    $this->assertEqual(-$decrease, $result, $message);
+  }
+
+  public function testPreviousCommentStatus() {
+    $increase = 1;
+    $decrease = 1;
+    $flag = 'spam';
+
+    $comment = (object) array('email' => 'a', 'flag_name' => $flag);
+    $lastComment = (object) array('email' => 'a');
+    $result = spam_detect_composite_status_of_previous_comment($comment, $lastComment, $this->off, $decrease, $flag);
+    $message = 'Should return 0; filter is off.';
+    $this->assertEqual(0, $result, $message);
+
+    $comment = (object) array('email' => 'a', 'flag_name' => $flag);
+    $lastComment = (object) array('email' => 'a',);
+    $result = spam_detect_composite_status_of_previous_comment($comment, $lastComment, $increase, $decrease, $flag);
+    $message = 'Should return Increase';
+    $this->assertEqual($increase, $result, $message);
+
+    $comment = (object) array('email' => 'a', 'flag_name' => '');
+    $lastComment = (object) array('email' => 'b');
+    $result = spam_detect_composite_status_of_previous_comment($comment, $lastComment, $increase, $decrease, $flag);
+    $message = 'Should return 0 since emails dont match';
+    $this->assertEqual(0, $result, $message);
+
+    $comment = (object) array('email' => 'a', 'flag_name' => '');
+    $lastComment = (object) array('email' => 'a');
+    $result = spam_detect_composite_status_of_previous_comment($comment, $lastComment, $increase, $decrease, $flag);
+    $message = 'Should return decrease';
+    $this->assertEqual(-$decrease, $result, $message);
+  }
+
+  public function testUrlWordsChars() {
+    $increase = 1;
+    $word_char_list = array('test', 'spam');
+
+    $link = 'http://testing.com/spam';
+    $result = spam_detect_composite_url_words_characters($link, $this->off, $word_char_list);
+    $message = 'Returns 0 because increase is set to -1';
+    $this->assertEqual(0, $result, $message);
+
+    $link = 'http://testing.com/spam';
+    $result = spam_detect_composite_url_words_characters($link, $increase, $word_char_list);
+    $message = 'Should equal $increase * 2';
+    $this->assertEqual($increase * 2, $result, $message);
+
+    $link = 'http://none.com/';
+    $result = spam_detect_composite_url_words_characters($link, $increase, $word_char_list);
+    $message = 'should equal 0';
+    $this->assertEqual(0, $result, $message);
+  }
+
+  public function testCompositeTlds() {
+    $increase = 1;
+    $spammy_tld_list = array('cn', 'de', 'pl');
+
+    $link = 'http://www.apple.cn';
+    $result = spam_detect_composite_tlds($link, $this->off, $spammy_tld_list);
+    $message = 'Should return 0; filter is off.';
+    $this->assertEqual(0, $result);
+
+    $link = 'http://www.apple.cn';
+    $result = spam_detect_composite_tlds($link, $increase, $spammy_tld_list);
+    $message = 'Should equal $increase';
+    $this->assertEqual($increase, $result, $message);
+
+    $link = 'www.apple.com';
+    $result = spam_detect_composite_tlds($link, $increase, $spammy_tld_list);
+    $message = 'Should equal 0';
+    $this->assertEqual(0, $result, $message);
+  }
+
+  public function testUrlLength() {
+    $increase = 1;
+    $threshold = 30;
+
+    $link = 'http://1234567890123456789012345678901';
+    $result = spam_detect_composite_url_length($link, $increase, $this->off);
+    $message = 'Should return 0; filter is off.';
+    $this->assertEqual(0, $result, $message);
+
+    $link = 'http://1234567890123456789012345678901';
+    $result = spam_detect_composite_url_length($link, $increase, $threshold);
+    $message = 'Should return $increase';
+    $this->assertEqual($increase, $result, $message);
+
+    $link = 'http://12345678901234567890123456';
+    $result = spam_detect_composite_url_length($link, $increase, $threshold);
+    $message = 'Should remove http:// and return 0';
+    $this->assertEqual(0, $result, $message);
+  }
+
+
+
+  public function testFirstWord() {
+    $first_words = 'Interesting ' . "\r\n" . 'cool' . "\r\n" . 'Sorry' . "\r\n"  . 'nice';
+    $increase = 10;
+
+    $text = 'cool beans';
+    $result = spam_detect_composite_first_word($text, $this->off, $first_words);
+    $message = 'Should return 0; filter is off.';
+    $this->assertEqual(0, $result, $message);
+
+    $text = 'cool beans';
+    $result = spam_detect_composite_first_word($text, $increase, $first_words);
+    $message = 'Should return $increase';
+    $this->assertEqual($increase, $result, $message);
+
+    $text = 'asd;lf as;lfd a;sldf';
+    $result = spam_detect_composite_first_word($text, $increase, $first_words);
+    $message = 'Should return 0';
+    $this->assertEqual(0, $result, $message);
+  }
+
+  public function testAuthorNameCheck() {
+    $increase = 2;
+
+    $name = '<a href="http://test.com">test</a> <a href="https://test.com">name</a>';
+    $result = spam_detect_composite_author_name_check($name, $this->off);
+    $message = 'Should return 0; filter is off.';
+    $this->assertEqual(0, $result, $message);
+
+    $name = '<a href="http://test.com">test</a> <a href="https://test.com">name</a>';
+    $result = spam_detect_composite_author_name_check($name, $increase);
+    $message = 'Should Return $increase * 2';
+    $this->assertEqual($increase * 2, $result, $message);
+
+    $name = 'Test Name';
+    $result = spam_detect_composite_author_name_check($name, $increase);
+    $message = 'Should return 0';
+    $this->assertEqual(0, $result, $message);
+  }
+
+  public function testBodyInPreviousComment() {
+    $increase = 1;
+
+    $comment = (object) array('body' => 'abcd');
+    $last_comment = (object) array('body' => 'abcd');
+    $result = spam_detect_composite_body_in_previous_comment($comment, $last_comment, $this->off);
+    $message = 'Should return 0; filter is off.';
+    $this->assertEqual(0, $result, $message);
+
+    $comment = (object) array('body' => 'zywx');
+    $last_comment = (object) array('body' => 'abcd');
+    $result = spam_detect_composite_body_in_previous_comment($comment, $last_comment, $increase);
+    $message = 'Should return 0';
+    $this->assertEqual(0, $result, $message);
+
+    $comment = (object) array('body' => 'abcd');
+    $last_comment = (object) array('body' => 'abcd');
+    $result = spam_detect_composite_body_in_previous_comment($comment, $last_comment, $increase);
+    $message = 'Should return $increase';
+    $this->assertEqual($increase, $result);
+  }
+
+  public function testConsonants() {
+    $increase = 1;
+
+    $text = 'bcdfgh';
+    $result = spam_detect_composite_consonants($text, $this->off);
+    $message = 'Should return 0; filter is off.';
+    $this->assertEqual(0, $result, $message);
+
+    $text = 'bcdfgbcdfgbcdfg bcdfg'; //four sets of 5 consonants
+    $result = spam_detect_composite_consonants($text, $increase);
+    $message = 'Should return $increase * 4';
+    $this->assertEqual($increase * 4, $result, $message);
+
+    $text = 'Lorem Ipsum Dolar Sit Tecum';
+    $result = spam_detect_composite_consonants($text, $increase);
+    $message = 'Should return 0';
+    $this->assertEqual(0, $result, $message);
+  }
+
+}
+
